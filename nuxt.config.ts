@@ -7,5 +7,9 @@ export default defineNuxtConfig({
 
   modules: [
     'nuxt-unapi'
-  ]
+  ],
+
+  build: {
+    transpile: ['xlsx']
+  }
 })

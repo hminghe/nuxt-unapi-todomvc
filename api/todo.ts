@@ -2,6 +2,10 @@ import prisma from '~/prisma'
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
+import { read as readXlsx, utils as xlsxUtils } from 'xlsx'
+
+
+
 export const getTodos = defineApi({
   props: z.object({
     completed: z.boolean().optional(),
@@ -22,7 +26,7 @@ export const getTodos = defineApi({
 
     return prisma.todo.findMany({
       where
-    }) 
+    })
   },
 })
 
@@ -49,7 +53,7 @@ export const addTodo = defineApi({
 
 export const removeTodo = defineApi({
   props: z.number(),
-  handler (id) {
+  handler(id) {
     return prisma.todo.delete({
       where: { id }
     })
@@ -70,7 +74,7 @@ export const updateTodo = defineApi({
     title: z.string().optional(),
     completed: z.boolean().optional(),
   }),
-  handler (data) {
+  handler(data) {
     return prisma.todo.update({
       where: { id: data.id },
       data,
@@ -86,13 +90,54 @@ export const batchUpdateTodo = defineApi({
 
   handler(data) {
     return prisma.todo.updateMany({
-      where: { id: {
-        in: data.ids,
-      } },
+      where: {
+        id: {
+          in: data.ids,
+        }
+      },
       data: {
         completed: data.completed,
       }
     })
   },
 
+})
+
+export const importTodo = defineFormDataApi({
+  props: z.object({
+    file: zodFile()
+  }),
+
+  async handler({ file }) {
+    const wb = await readXlsx(file.data)
+
+    const sheet = wb.Sheets[wb.SheetNames[0]]
+
+    const list = xlsxUtils.sheet_to_json(sheet) as { title?: string }[]
+
+    const inserts = []
+    for (const item of list) {
+      if (item.title && item.title.trim()) {
+        inserts.push(prisma.todo.create({
+          data: {
+            title: item.title.trim(),
+            completed: false
+          },
+          select: { id: true },
+        }))
+      }
+    }
+
+    const result = await prisma.$transaction(inserts)
+
+    return {
+      count: result.length
+    }
+
+
+    // SQLite not supported createMany
+    // return prisma.todo.createMany({
+    //   data: todos
+    // })
+  },
 })

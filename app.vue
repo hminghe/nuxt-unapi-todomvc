@@ -3,6 +3,10 @@ import { ref, computed } from 'vue'
 import * as todoApi from './api/todo';
 import type { Todo } from '@prisma/client'
 
+useHead({
+  title: 'todos'
+})
+
 const route = useRoute()
 
 const visibility = computed(() => {
@@ -92,6 +96,17 @@ async function removeCompleted() {
   refreshTodo()
 }
 
+async function importTodo (e) {
+  const fd = todoApi.importTodo.safeFormData()
+  fd.append('file', e.target.files[0])
+  const { count } = await todoApi.importTodo(fd)
+  alert(`${count} items were imported successfully`)
+
+  refreshTodo()
+  refreshRemaining()
+  e.target.value = ''
+}
+
 </script>
 
 <template>
@@ -160,6 +175,11 @@ async function removeCompleted() {
       </button>
     </footer>
   </section>
+
+  <div>
+    import File：
+    <input type="file" @change="importTodo" />
+  </div>
 </template>
 
 <style>
